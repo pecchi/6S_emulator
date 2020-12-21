@@ -162,11 +162,11 @@ def build_LUT(config):
     """
 
     # initiate 6S object with constants
-    s = SixS()
+    s = SixS("/home/snakano/work/himawari/sixs/6SV1.1/bin/sixsV1.1")
     s.altitudes.set_sensor_satellite_level()
     s.aero_profile = AeroProfile.__dict__[config['aerosol_profile']]
     s.geometry = Geometry.User()
-    # s.geometry.view_z = config['view_zenith']
+    s.geometry.view_z = config['view_zenith']
     s.geometry.month = 1  # Earth-sun distance correction is later
     s.geometry.day = 4   # applied from perihelion, i.e. Jan 4th.
 
@@ -176,16 +176,16 @@ def build_LUT(config):
     # run 6S for each permutation
     outputs = []
     for perm in perms:
-        print('{0}: solar_z = {1[0]:02}, H2O = {1[1]:.2f}, O3 = {1[2]:.1f},'
+        print('{0}: solar_z = {1[0]:02}, H2O = {1[1]:.2f}, O3 = {1[2]:.1f}, '
               'AOT = {1[3]:.2f}, alt = {1[4]:.2f}'.format(config['filename'], perm))
 
         # update input variables
         s.geometry.solar_z = perm[0]
-        s.geometry.solar_a = perm[1]
-        s.geometry.view_z = perm[2]
-        s.geometry.view_a = perm[3]
-        s.atmos_profile = AtmosProfile.UserWaterAndOzone(perm[4], perm[5])
-        s.aot550 = perm[6]
+        # s.geometry.solar_a = perm[1]
+        # s.geometry.view_z = perm[2]
+        # s.geometry.view_a = perm[3]
+        s.atmos_profile = AtmosProfile.UserWaterAndOzone(perm[1], perm[2])
+        s.aot550 = perm[3]
         s.altitudes.set_target_custom_altitude(perm[4])
         s.wavelength = config['spectrum']
 
