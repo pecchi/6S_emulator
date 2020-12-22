@@ -119,6 +119,18 @@ def input_variables(build_type):
         'AOTs': [0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.25, 3],
         'alts': [0, 1, 4, 7.75]
     }
+
+    custom = {
+        'solar_zs': [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80],
+        'solar_az': [-90, -80, -70, -60, -50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 70, 80, 90],
+        'view_zs': [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80],
+        'view_az': [-90, -80, -70, -60, -50, -40, -30, -20, -10, 0, 10, 20, 30, 40, 50, 60, 70, 80, 90],
+        'H2Os': [0, 1, 2, 3, 4, 5],
+        'O3s': [0.25, 0.30, 0.35],
+        'AOTs': [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
+        'alts': [0]
+    }
+
     # Maximum altitude is set to 7.75 km to avoid 6S's 8 km scale height.
     # Note, only 30 mountain peaks in the world are higher than 7.75 km:
     # https://en.wikipedia.org/wiki/List_of_highest_mountains
@@ -139,7 +151,8 @@ def input_variables(build_type):
         'test': test,
         'test2': test2,
         'validation': validation,
-        'full': full
+        'full': full,
+        'custom': custom,
     }
 
     return build_selector[build_type]
@@ -150,6 +163,9 @@ def permutate_invars(invars):
     permutation of input variables for LUT
     """
     return list(product(invars['solar_zs'],
+                        invars['solar_az'],
+                        invars['view_zs'],
+                        invars['view_az'],
                         invars['H2Os'],
                         invars['O3s'],
                         invars['AOTs'],
@@ -166,7 +182,7 @@ def build_LUT(config):
     s.altitudes.set_sensor_satellite_level()
     s.aero_profile = AeroProfile.__dict__[config['aerosol_profile']]
     s.geometry = Geometry.User()
-    s.geometry.view_z = config['view_zenith']
+    # s.geometry.view_z = config['view_zenith']
     s.geometry.month = 1  # Earth-sun distance correction is later
     s.geometry.day = 4   # applied from perihelion, i.e. Jan 4th.
 
@@ -176,17 +192,18 @@ def build_LUT(config):
     # run 6S for each permutation
     outputs = []
     for perm in perms:
-        print('{0}: solar_z = {1[0]:02}, H2O = {1[1]:.2f}, O3 = {1[2]:.1f}, '
-              'AOT = {1[3]:.2f}, alt = {1[4]:.2f}'.format(config['filename'], perm))
+        print('{0}: solar_z = {1[0]:02}, solar_a = {1[1]:02}, view_z = {1[2]:02}, view_a = {1[3]:02}, '
+              'H2O = {1[4]:.2f}, O3 = {1[5]:.1f}, '
+              'AOT = {1[6]:.2f}, alt = {1[7]:.2f}'.format(config['filename'], perm))
 
         # update input variables
         s.geometry.solar_z = perm[0]
-        # s.geometry.solar_a = perm[1]
-        # s.geometry.view_z = perm[2]
-        # s.geometry.view_a = perm[3]
-        s.atmos_profile = AtmosProfile.UserWaterAndOzone(perm[1], perm[2])
-        s.aot550 = perm[3]
-        s.altitudes.set_target_custom_altitude(perm[4])
+        s.geometry.solar_a = perm[1]
+        s.geometry.view_z = perm[2]
+        s.geometry.view_a = perm[3]
+        s.atmos_profile = AtmosProfile.UserWaterAndOzone(perm[4], perm[5])
+        s.aot550 = perm[6]
+        s.altitudes.set_target_custom_altitude(perm[7])
         s.wavelength = config['spectrum']
 
         # run 6S
@@ -246,9 +263,10 @@ def IO_handler(config, args):
 
     # outdir
     base_path = os.path.dirname(os.path.abspath(__file__))
-    # TODO: viewing angleを考慮したディレクトリ名にする
+    # FIX: remove view_zenith dir
     outdir = os.path.join(base_path, 'files', 'LUTs', sensor_name,
-                          config['aerosol_profile'], 'view_zenith_{}'.format(config['view_zenith']))
+                          config['aerosol_profile'])
+    #   config['aerosol_profile'], 'view_zenith_{}'.format(config['view_zenith']))
     if not os.path.exists(outdir):
         print('\nCreating new output directory!\n'+outdir+'\n')
         os.makedirs(outdir)
@@ -337,7 +355,7 @@ def main():
 
     # build type (default to smallest test build)
     if build_type:
-        if build_type not in ['test', 'test2', 'full', 'validation']:
+        if build_type not in ['test', 'test2', 'full', 'validation', 'custom']:
             print('Build type not recognized: ', build_type)
             sys.exit(1)
     else:
